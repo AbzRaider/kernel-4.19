@@ -470,6 +470,11 @@ config SND_SOC_CS35L35
 	tristate "Cirrus Logic CS35L35 CODEC"
 	depends on I2C
 
+config SND_SOC_CS35L41
+	tristate "Cirrus CS35L41 Smart Amp"
+	select SND_SOC_COMPRESS
+	depends on I2C
+
 config SND_SOC_CS42L42
 	tristate "Cirrus Logic CS42L42 CODEC"
 	depends on I2C
