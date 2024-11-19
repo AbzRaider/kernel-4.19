@@ -21,6 +21,10 @@
 #define SGEN_MUTE_CH1_KCONTROL_NAME "Audio_SineGen_Mute_Ch1"
 #define SGEN_MUTE_CH2_KCONTROL_NAME "Audio_SineGen_Mute_Ch2"
 
+#if defined(CONFIG_MTK_ULTRASND_PROXIMITY)
+extern unsigned int elliptic_add_platform_controls(void *platform);
+#endif
+
 static const char * const mt6885_sgen_mode_str[] = {
 	"I0I1",   "I2",     "I3I4",   "I5I6",
 	"I7I8",   "I9",     "I10I11", "I12I13",
@@ -40,7 +44,7 @@ static const char * const mt6885_sgen_mode_str[] = {
 	"O4",
 };
 
-static const int mt6885_sgen_mode_idx[] = {
+static const int const mt6885_sgen_mode_idx[] = {
 	0, 1, 2, 3,
 	4, 5, 6, 7,
 	8, 9, 10, 11,
@@ -66,7 +70,7 @@ static const char * const mt6885_sgen_rate_str[] = {
 	"192k"
 };
 
-static const int mt6885_sgen_rate_idx[] = {
+static const int const mt6885_sgen_rate_idx[] = {
 	0, 1, 2, 4,
 	5, 6, 8, 9,
 	10, 11, 12, 13,
@@ -2163,31 +2167,33 @@ static const struct snd_kcontrol_new mt6885_afe_bargein_controls[] = {
 		       mt6885_afe_vow_bargein_set),
 };
 
-int mt6885_add_misc_control(struct snd_soc_component *component)
+int mt6885_add_misc_control(struct snd_soc_platform *platform)
 {
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	dev_info(platform->dev, "%s()\n", __func__);
 
-	dev_info(afe->dev, "%s()\n", __func__);
+	snd_soc_add_platform_controls(platform,
+				      mt6885_afe_sgen_controls,
+				      ARRAY_SIZE(mt6885_afe_sgen_controls));
 
-	snd_soc_add_component_controls(component,
-				       mt6885_afe_sgen_controls,
-				       ARRAY_SIZE(mt6885_afe_sgen_controls));
+	snd_soc_add_platform_controls(platform,
+				      mt6885_afe_debug_controls,
+				      ARRAY_SIZE(mt6885_afe_debug_controls));
 
-	snd_soc_add_component_controls(component,
-				       mt6885_afe_debug_controls,
-				       ARRAY_SIZE(mt6885_afe_debug_controls));
+	snd_soc_add_platform_controls(platform,
+				      mt6885_afe_usb_controls,
+				      ARRAY_SIZE(mt6885_afe_usb_controls));
 
-	snd_soc_add_component_controls(component,
-				       mt6885_afe_usb_controls,
-				       ARRAY_SIZE(mt6885_afe_usb_controls));
+	snd_soc_add_platform_controls(platform,
+				      mt6885_afe_speech_controls,
+				      ARRAY_SIZE(mt6885_afe_speech_controls));
 
-	snd_soc_add_component_controls(component,
-				       mt6885_afe_speech_controls,
-				       ARRAY_SIZE(mt6885_afe_speech_controls));
-
-	snd_soc_add_component_controls(component,
-				       mt6885_afe_bargein_controls,
-				       ARRAY_SIZE(mt6885_afe_bargein_controls));
+	snd_soc_add_platform_controls(platform,
+				      mt6885_afe_bargein_controls,
+				      ARRAY_SIZE(mt6885_afe_bargein_controls));
+	//for ellipitc mixer control
+#if defined(CONFIG_MTK_ULTRASND_PROXIMITY)
+	elliptic_add_platform_controls(platform);
+#endif
 
 	return 0;
 }
