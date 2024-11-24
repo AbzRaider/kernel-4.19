@@ -26,9 +26,9 @@
 #include "../common/mtk-sp-pcm-ops.h"
 #include "../common/mtk-sram-manager.h"
 
-#if defined(CONFIG_MTK_ION)
+
 #include "../common/mtk-mmap-ion.h"
-#endif
+
 
 #include "mt6885-afe-common.h"
 #include "mt6885-afe-clk.h"
@@ -1184,7 +1184,6 @@ static int mt6885_adsp_mem_set(struct snd_kcontrol *kcontrol,
 }
 #endif
 
-#if defined(CONFIG_MTK_ION)
 static int mt6885_mmap_dl_scene_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
@@ -1316,7 +1315,7 @@ static int mt6885_ul_mmap_fd_set(struct snd_kcontrol *kcontrol,
 {
 	return 0;
 }
-#endif
+
 
 static const struct snd_kcontrol_new mt6885_pcm_kcontrols[] = {
 	SOC_SINGLE_EXT("Audio IRQ1 CNT", SND_SOC_NOPM, 0, 0x3ffff, 0,
