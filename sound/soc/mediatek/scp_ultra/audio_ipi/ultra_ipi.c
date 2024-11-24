@@ -1,20 +1,29 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2019 MediaTek Inc.
+ * Copyright (C) 2019 MediaTek Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See http://www.gnu.org/licenses/gpl-2.0.html for more details.
  */
+
 
 /*****************************************************************************
  * Header Files
  *****************************************************************************/
 #include <linux/delay.h>
-#include <linux/notifier.h>
 #include "ultra_ipi.h"
 #include "audio_messenger_ipi.h"
+#include "scp_ipi.h"
 #include "audio_task_manager.h"
 #include "audio_task.h"
-#include "scp.h"
-
-
+#ifdef CONFIG_MTK_TINYSYS_SCP_SUPPORT
+#include <mt-plat/mtk_tinysys_ipi.h>
+#endif
 static void ultra_ipi_IPICmd_Received(struct ipi_msg_t *ipi_msg);
 static bool ultra_ipi_IPICmd_ReceiveAck(struct ipi_msg_t *ipi_msg);
 static void ultra_ipi_Unloaded_Handling(void);
