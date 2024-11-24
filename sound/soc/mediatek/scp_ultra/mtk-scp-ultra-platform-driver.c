@@ -496,6 +496,19 @@ static int mtk_scp_ultra_pcm_start(struct snd_pcm_substream *substream)
 			irq_data_dl->irq_cnt_maskbit
 			<< irq_data_dl->irq_cnt_shift,
 			counter << irq_data_dl->irq_cnt_shift);
+	/* set dl irq fs */
+	fs = afe->irq_fs(substream, param_config.rate_out);
+	if (fs < 0) {
+		dev_info(scp_ultra->dev, "%s() dl fs fail, rate=%d, fs=%d\n",
+			 __func__,
+			 param_config.rate_out,
+			 fs);
+		return -EINVAL;
+	}
+	regmap_update_bits(afe->regmap, irq_data_dl->irq_fs_reg,
+			irq_data_dl->irq_fs_maskbit
+			<< irq_data_dl->irq_fs_shift,
+			fs << irq_data_dl->irq_fs_shift);
 
 	/* start dl memif */
 	regmap_update_bits(afe->regmap,
@@ -509,6 +522,20 @@ static int mtk_scp_ultra_pcm_start(struct snd_pcm_substream *substream)
 			   irq_data_ul->irq_cnt_maskbit
 			   << irq_data_ul->irq_cnt_shift,
 			   counter << irq_data_ul->irq_cnt_shift);
+
+	/* set ul irq fs */
+	fs = afe->irq_fs(substream, param_config.rate_in);
+	if (fs < 0) {
+		dev_info(scp_ultra->dev, "%s() ul fs fail, rate=%d, fs=%d\n",
+			 __func__,
+			 param_config.rate_out,
+			 fs);
+		return -EINVAL;
+	}
+	regmap_update_bits(afe->regmap, irq_data_ul->irq_fs_reg,
+			  irq_data_ul->irq_fs_maskbit
+			  << irq_data_ul->irq_fs_shift,
+			  fs << irq_data_ul->irq_fs_shift);
 
 	/* Start ul memif */
 	regmap_update_bits(afe->regmap,
@@ -678,7 +705,7 @@ static int ultra_ipi_init(void)
 {
 	ultra_ipi_register(ultra_ipi_rx_internal, ultra_ipi_rceive_ack);
 	audio_ipi_client_ultra_init();
-	return 0;
+	return ret;
 }
 late_initcall(ultra_ipi_init);
 
