@@ -1,9 +1,17 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * mtk-afe-platform-driver.c  --  Mediatek afe platform driver
  *
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Garlic Tseng <garlic.tseng@mediatek.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -42,40 +50,39 @@ int mtk_afe_combine_sub_dai(struct mtk_base_afe *afe)
 		       sizeof(struct snd_soc_dai_driver));
 		dai_idx += dai->num_dai_drivers;
 	}
+
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mtk_afe_combine_sub_dai);
 
-int mtk_afe_add_sub_dai_control(struct snd_soc_component *component)
+int mtk_afe_add_sub_dai_control(struct snd_soc_platform *platform)
 {
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(platform);
 	struct mtk_base_afe_dai *dai;
 
 	list_for_each_entry(dai, &afe->sub_dais, list) {
 		if (dai->controls)
-			snd_soc_add_component_controls(component,
-						       dai->controls,
-						       dai->num_controls);
+			snd_soc_add_platform_controls(platform,
+						      dai->controls,
+						      dai->num_controls);
 
 		if (dai->dapm_widgets)
-			snd_soc_dapm_new_controls(&component->dapm,
+			snd_soc_dapm_new_controls(&platform->component.dapm,
 						  dai->dapm_widgets,
 						  dai->num_dapm_widgets);
 	}
 	/* add routes after all widgets are added */
 	list_for_each_entry(dai, &afe->sub_dais, list) {
 		if (dai->dapm_routes)
-			snd_soc_dapm_add_routes(&component->dapm,
+			snd_soc_dapm_add_routes(&platform->component.dapm,
 						dai->dapm_routes,
 						dai->num_dapm_routes);
 	}
 
-	snd_soc_dapm_new_widgets(component->dapm.card);
+	snd_soc_dapm_new_widgets(platform->component.dapm.card);
 
 	return 0;
 
 }
-EXPORT_SYMBOL_GPL(mtk_afe_add_sub_dai_control);
 
 unsigned int word_size_align(unsigned int in_size)
 {
@@ -85,38 +92,60 @@ unsigned int word_size_align(unsigned int in_size)
 	align_size = in_size & 0xFFFFFFF0;
 	return align_size;
 }
-EXPORT_SYMBOL_GPL(word_size_align);
 
 static snd_pcm_uframes_t mtk_afe_pcm_pointer
 			 (struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
 	struct mtk_base_afe_memif *memif = &afe->memif[rtd->cpu_dai->id];
 	const struct mtk_base_memif_data *memif_data = memif->data;
 	struct regmap *regmap = afe->regmap;
 	struct device *dev = afe->dev;
 	int reg_ofs_base = memif_data->reg_ofs_base;
+	int reg_ofs_base_msb = memif_data->reg_ofs_base_msb;
 	int reg_ofs_cur = memif_data->reg_ofs_cur;
+	int reg_ofs_cur_msb = memif_data->reg_ofs_cur_msb;
 	unsigned int hw_ptr = 0, hw_base = 0;
+	unsigned int hw_ptr_msb = 0, hw_base_msb = 0;
+	u64 hw_ptr_64 =0, hw_base_64 = 0;
 	int ret, pcm_ptr_bytes;
 
 	ret = regmap_read(regmap, reg_ofs_cur, &hw_ptr);
-	if (ret || hw_ptr == 0) {
+	if (ret) {
+		dev_err(dev, "%s regmap_read hw_ptr err, ret = %d\n", __func__, ret);
+		pcm_ptr_bytes = 0;
+		goto POINTER_RETURN_FRAMES;
+	}
+
+	ret = regmap_read(regmap, reg_ofs_cur_msb, &hw_ptr_msb);
+	if (ret || (hw_ptr == 0 && hw_ptr_msb == 0)) {
 		dev_err(dev, "%s hw_ptr err\n", __func__);
 		pcm_ptr_bytes = 0;
 		goto POINTER_RETURN_FRAMES;
 	}
+	hw_ptr_64 = hw_ptr_msb;
+	hw_ptr_64 <<= 32;
+	hw_ptr_64 |= hw_ptr;
 
 	ret = regmap_read(regmap, reg_ofs_base, &hw_base);
-	if (ret || hw_base == 0) {
-		dev_err(dev, "%s hw_ptr err\n", __func__);
+	if (ret) {
+		dev_err(dev, "%s regmap_read hw_base err, ret = %d\n", __func__, ret);
 		pcm_ptr_bytes = 0;
 		goto POINTER_RETURN_FRAMES;
 	}
 
-	pcm_ptr_bytes = hw_ptr - hw_base;
+	ret = regmap_read(regmap, reg_ofs_base_msb, &hw_base_msb);
+	if (ret || (hw_base == 0 && hw_base_msb == 0)) {
+		dev_err(dev, "%s hw_base err\n", __func__);
+		pcm_ptr_bytes = 0;
+		goto POINTER_RETURN_FRAMES;
+	}
+	hw_base_64 = hw_base_msb;
+	hw_base_64 <<= 32;
+	hw_base_64 |= hw_base;
+
+	pcm_ptr_bytes = hw_ptr_64 - hw_base_64;
 
 POINTER_RETURN_FRAMES:
 	pcm_ptr_bytes = word_size_align(pcm_ptr_bytes);
@@ -126,9 +155,7 @@ POINTER_RETURN_FRAMES:
 int mtk_afe_pcm_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
 	struct mtk_base_afe_memif *memif = &afe->memif[rtd->cpu_dai->id];
 
 	if (!memif->ack_enable)
@@ -179,9 +206,7 @@ static int mtk_afe_pcm_copy_user(struct snd_pcm_substream *substream,
 				 void *buf, unsigned long bytes)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
 	int is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	mtk_sp_copy_f sp_copy;
 	int ret;
@@ -207,14 +232,12 @@ const struct snd_pcm_ops mtk_afe_pcm_ops = {
 	.ack = mtk_afe_pcm_ack,
 	.copy_user = mtk_afe_pcm_copy_user,
 };
-EXPORT_SYMBOL_GPL(mtk_afe_pcm_ops);
 
 int mtk_afe_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	size_t size = 0;
 	struct snd_pcm *pcm = rtd->pcm;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
 	int ret = 0;
 
 	if (rtd->cpu_dai->id < afe->memif_size) { /* DL and UL memif pcm */
@@ -232,16 +255,13 @@ int mtk_afe_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		 size, ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mtk_afe_pcm_new);
 
 void mtk_afe_pcm_free(struct snd_pcm *pcm)
 {
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
-EXPORT_SYMBOL_GPL(mtk_afe_pcm_free);
 
-const struct snd_soc_component_driver mtk_afe_pcm_platform = {
-	.name = AFE_PCM_NAME,
+const struct snd_soc_platform_driver mtk_afe_pcm_platform = {
 	.ops = &mtk_afe_pcm_ops,
 	.pcm_new = mtk_afe_pcm_new,
 	.pcm_free = mtk_afe_pcm_free,

@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2019 MediaTek Inc.
+ * mtk-sram-manager.h  --  Mediatek afe sram manager
+ *
+ * Copyright (c) 2017 MediaTek Inc.
  * Author: Kai Chieh Chuang <kaichieh.chuang@mediatek.com>
  */
 

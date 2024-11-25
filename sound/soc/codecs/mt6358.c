@@ -1493,7 +1493,7 @@ static int mt_aif_in_event(struct snd_soc_dapm_widget *w,
 		/* sdm audio fifo clock power on */
 		regmap_write(priv->regmap, MT6358_AFUNC_AUD_CON2, 0x0006);
 		/* scrambler clock on enable, invert left channel */
-		regmap_write(priv->regmap, MT6358_AFUNC_AUD_CON0, 0xcba1);
+		regmap_write(priv->regmap, MT6358_AFUNC_AUD_CON0, 0xCFA1);
 		/* sdm power on */
 		regmap_write(priv->regmap, MT6358_AFUNC_AUD_CON2, 0x0003);
 		/* sdm fifo enable */
@@ -1502,7 +1502,7 @@ static int mt_aif_in_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMD:
 		/* DL scrambler disabling sequence */
 		regmap_write(priv->regmap, MT6358_AFUNC_AUD_CON2, 0x0000);
-		regmap_write(priv->regmap, MT6358_AFUNC_AUD_CON0, 0xcba0);
+		regmap_write(priv->regmap, MT6358_AFUNC_AUD_CON0, 0xCFA0);
 
 		playback_gpio_reset(priv);
 		break;
@@ -2123,8 +2123,6 @@ static int mtk_hp_dual_spk_enable(struct mt6358_priv *priv)
 {
 	unsigned int trim_setting = 0;
 	unsigned int reg_value = 0;
-	/* scrambler clock on enable, invert left channel */
-	regmap_write(priv->regmap, MT6358_AFUNC_AUD_CON0, 0xcfa1);
 #ifdef ANALOG_HPTRIM
 	regmap_read(priv->regmap, MT6358_AUDDEC_ELR_0, &reg_value);
 	dev_info(priv->dev, "%s(), current AUDDEC_ELR_0 = 0x%x, mic_vinp_mv = %d\n",
@@ -2791,8 +2789,6 @@ static int mt_rcv_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		/* scrambler clock on enable, invert left channel */
-		regmap_write(priv->regmap, MT6358_AFUNC_AUD_CON0, 0xcfa1);
 		/* Reduce ESD resistance of AU_REFN */
 		regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON2, 0x4000);
 
@@ -3148,7 +3144,6 @@ static int mt6358_amic_enable(struct mt6358_priv *priv)
 	unsigned int mux_pga_r = priv->mux_select[MUX_PGA_R];
 	int mic_gain_l = priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP1];
 	int mic_gain_r = priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP2];
-	unsigned int reg_value = 0, rc_1 = 0, rc_2 = 0;
 
 	dev_info(priv->dev, "%s(), mux, mic %u, pga l %u, pga r %u, mic_gain l %d, r %d\n",
 		 __func__, mic_type, mux_pga_l, mux_pga_r,
@@ -3236,13 +3231,11 @@ static int mt6358_amic_enable(struct mt6358_priv *priv)
 					   0x1 << RG_AUDPREAMPLDCCEN_SFT);
 		}
 
-		usleep_range(1000, 1050);
 		/* L ADC input sel : L PGA. Enable audio L ADC */
 		regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON0,
 				   RG_AUDADCLINPUTSEL_MASK_SFT,
 				   ADC_MUX_PREAMPLIFIER <<
 				   RG_AUDADCLINPUTSEL_SFT);
-		usleep_range(1000, 1050);
 		regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON0,
 				   RG_AUDADCLPWRUP_MASK_SFT,
 				   0x1 << RG_AUDADCLPWRUP_SFT);
@@ -3258,7 +3251,7 @@ static int mt6358_amic_enable(struct mt6358_priv *priv)
 		regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON1,
 				   RG_AUDPREAMPRON_MASK_SFT,
 				   0x1 << RG_AUDPREAMPRON_SFT);
-		usleep_range(1000, 1050);
+
 		if (IS_DCC_BASE(mic_type)) {
 			/* R preamplifier DCCEN */
 			regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON1,
@@ -3271,7 +3264,6 @@ static int mt6358_amic_enable(struct mt6358_priv *priv)
 				   RG_AUDADCRINPUTSEL_MASK_SFT,
 				   ADC_MUX_PREAMPLIFIER <<
 				   RG_AUDADCRINPUTSEL_SFT);
-		usleep_range(1000, 1050);
 		regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON1,
 				   RG_AUDADCRPWRUP_MASK_SFT,
 				   0x1 << RG_AUDADCRPWRUP_SFT);
@@ -3290,32 +3282,7 @@ static int mt6358_amic_enable(struct mt6358_priv *priv)
 		regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON3,
 				   0x1 << 12, 0x0);
 	}
-	regmap_read(priv->regmap, MT6358_AUDENC_ANA_CON12, &reg_value);
-	rc_1 = reg_value & 0x1f;
-	rc_2 = (reg_value >> 8 ) & 0x1f;
-	dev_dbg(priv->dev, "%s(), MT6358_AUDENC_CON12(rc2, rc1) = 0x%x(0x%x, 0x%x)\n",
-		__func__, reg_value, rc_2, rc_1);
-	if ((rc_2 == 0) || (rc_1 == 0)) {
-		/* Disable audio L ADC */
-		regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON0,
-				   RG_AUDADCLPWRUP_MASK_SFT,
-				   0x0 << RG_AUDADCLPWRUP_SFT);
-		/* Disable audio R ADC */
-		regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON1,
-				   RG_AUDADCRPWRUP_MASK_SFT,
-				   0x0 << RG_AUDADCRPWRUP_SFT);
-		/* Enable audio L ADC */
-		regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON0,
-				   RG_AUDADCLPWRUP_MASK_SFT,
-				   0x1 << RG_AUDADCLPWRUP_SFT);
-		/* Enable audio R ADC */
-		regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON1,
-				   RG_AUDADCRPWRUP_MASK_SFT,
-				   0x1 << RG_AUDADCRPWRUP_SFT);
-	}
-	regmap_read(priv->regmap, MT6358_AUDENC_ANA_CON12, &reg_value);
-	dev_dbg(priv->dev, "%s(), final: MT6358_AUDENC_CON12 = 0x%x\n",
-		__func__, reg_value);
+
 	/* here to set digital part */
 	mt6358_mtkaif_tx_enable(priv);
 
@@ -7207,8 +7174,9 @@ static int get_hp_current_calibrate_val(struct mt6358_priv *priv)
 	return value;
 }
 
-static int mt6358_codec_probe(struct snd_soc_component *cmpnt)
+static int mt6358_codec_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_component *cmpnt = &codec->component;
 	struct mt6358_priv *priv = snd_soc_component_get_drvdata(cmpnt);
 
 	snd_soc_component_init_regmap(cmpnt, priv->regmap);
@@ -7241,13 +7209,14 @@ static int mt6358_codec_probe(struct snd_soc_component *cmpnt)
 	return 0;
 }
 
-static struct snd_soc_component_driver mt6358_soc_component_driver = {
-	.name = CODEC_MT6358_NAME,
+static struct snd_soc_codec_driver mt6358_soc_codec_driver = {
 	.probe = mt6358_codec_probe,
-	.dapm_widgets = mt6358_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(mt6358_dapm_widgets),
-	.dapm_routes = mt6358_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(mt6358_dapm_routes),
+	.component_driver = {
+		.dapm_widgets = mt6358_dapm_widgets,
+		.num_dapm_widgets = ARRAY_SIZE(mt6358_dapm_widgets),
+		.dapm_routes = mt6358_dapm_routes,
+		.num_dapm_routes = ARRAY_SIZE(mt6358_dapm_routes),
+	},
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -8203,8 +8172,8 @@ static int mt6358_platform_driver_probe(struct platform_device *pdev)
 	dev_info(priv->dev, "%s(), dev name %s\n",
 		 __func__, dev_name(&pdev->dev));
 
-	return snd_soc_register_component(&pdev->dev,
-				      &mt6358_soc_component_driver,
+	return snd_soc_register_codec(&pdev->dev,
+				      &mt6358_soc_codec_driver,
 				      mt6358_dai_driver,
 				      ARRAY_SIZE(mt6358_dai_driver));
 }
@@ -8218,7 +8187,7 @@ static int mt6358_platform_driver_remove(struct platform_device *pdev)
 
 	debugfs_remove(priv->debugfs);
 #endif
-	snd_soc_unregister_component(&pdev->dev);
+	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 

@@ -13,8 +13,6 @@
 
 #include <sound/soc.h>
 
-#define BTCVSD_SND_NAME "mtk-btcvsd-snd"
-
 #define BT_CVSD_TX_NREADY	BIT(21)
 #define BT_CVSD_RX_READY	BIT(22)
 #define BT_CVSD_TX_UNDERFLOW	BIT(23)
@@ -932,16 +930,8 @@ static const struct snd_pcm_hardware mtk_btcvsd_hardware = {
 static int mtk_pcm_btcvsd_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd,
-							BTCVSD_SND_NAME);
-	struct mtk_btcvsd_snd *bt;
+	struct mtk_btcvsd_snd *bt = snd_soc_platform_get_drvdata(rtd->platform);
 	int ret;
-
-	if (!component) {
-		dev_warn(rtd->dev, "%s(), component is null\n", __func__);
-		return -EINVAL;
-	}
-	bt = snd_soc_component_get_drvdata(component);
 
 	dev_dbg(bt->dev, "%s(), stream %d, substream %p\n",
 		__func__, substream->stream, substream);
@@ -962,17 +952,8 @@ static int mtk_pcm_btcvsd_open(struct snd_pcm_substream *substream)
 static int mtk_pcm_btcvsd_close(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd,
-							BTCVSD_SND_NAME);
-	struct mtk_btcvsd_snd *bt;
-	struct mtk_btcvsd_snd_stream *bt_stream;
-
-	if (!component) {
-		dev_warn(rtd->dev, "%s(), component is null\n", __func__);
-		return -EINVAL;
-	}
-	bt = snd_soc_component_get_drvdata(component);
-	bt_stream = get_bt_stream(bt, substream);
+	struct mtk_btcvsd_snd *bt = snd_soc_platform_get_drvdata(rtd->platform);
+	struct mtk_btcvsd_snd_stream *bt_stream = get_bt_stream(bt, substream);
 
 	dev_dbg(bt->dev, "%s(), stream %d\n", __func__, substream->stream);
 
@@ -985,15 +966,8 @@ static int mtk_pcm_btcvsd_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd,
-							BTCVSD_SND_NAME);
-	struct mtk_btcvsd_snd *bt;
-
-	if (!component) {
-		dev_warn(rtd->dev, "%s(), component is null\n", __func__);
-		return -EINVAL;
-	}
-	bt = snd_soc_component_get_drvdata(component);
+	struct mtk_btcvsd_snd *bt = snd_soc_platform_get_drvdata(rtd->platform);
+	dev_dbg(bt->dev, "%s(), stream %d\n", __func__, substream->stream);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    params_buffer_bytes(hw_params) % bt->tx->packet_size != 0) {
@@ -1010,15 +984,9 @@ static int mtk_pcm_btcvsd_hw_params(struct snd_pcm_substream *substream,
 static int mtk_pcm_btcvsd_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd,
-							BTCVSD_SND_NAME);
-	struct mtk_btcvsd_snd *bt;
-
-	if (!component) {
-		dev_warn(rtd->dev, "%s(), component is null\n", __func__);
-		return -EINVAL;
-	}
-	bt = snd_soc_component_get_drvdata(component);
+	struct mtk_btcvsd_snd *bt = snd_soc_platform_get_drvdata(rtd->platform);
+	dev_dbg(bt->dev, "%s(), stream %d, bt->disable_write_silence %d\n",
+		__func__, substream->stream, bt->disable_write_silence);
 
 	if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK) &&
 	    (bt->disable_write_silence == 0))
@@ -1030,17 +998,8 @@ static int mtk_pcm_btcvsd_hw_free(struct snd_pcm_substream *substream)
 static int mtk_pcm_btcvsd_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd,
-							BTCVSD_SND_NAME);
-	struct mtk_btcvsd_snd *bt;
-	struct mtk_btcvsd_snd_stream *bt_stream;
-
-	if (!component) {
-		dev_warn(rtd->dev, "%s(), component is null\n", __func__);
-		return -EINVAL;
-	}
-	bt = snd_soc_component_get_drvdata(component);
-	bt_stream = get_bt_stream(bt, substream);
+	struct mtk_btcvsd_snd *bt = snd_soc_platform_get_drvdata(rtd->platform);
+	struct mtk_btcvsd_snd_stream *bt_stream = get_bt_stream(bt, substream);
 
 	dev_dbg(bt->dev, "%s(), stream %d\n", __func__, substream->stream);
 
@@ -1051,19 +1010,10 @@ static int mtk_pcm_btcvsd_prepare(struct snd_pcm_substream *substream)
 static int mtk_pcm_btcvsd_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd,
-							BTCVSD_SND_NAME);
-	struct mtk_btcvsd_snd *bt;
-	struct mtk_btcvsd_snd_stream *bt_stream;
+	struct mtk_btcvsd_snd *bt = snd_soc_platform_get_drvdata(rtd->platform);
+	struct mtk_btcvsd_snd_stream *bt_stream = get_bt_stream(bt, substream);
 	int stream = substream->stream;
 	int hw_packet_ptr;
-
-	if (!component) {
-		dev_warn(rtd->dev, "%s(), component is null\n", __func__);
-		return -EINVAL;
-	}
-	bt = snd_soc_component_get_drvdata(component);
-	bt_stream = get_bt_stream(bt, substream);
 
 	dev_dbg(bt->dev, "%s(), stream %d, cmd %d\n",
 		__func__, substream->stream, cmd);
@@ -1091,9 +1041,7 @@ static snd_pcm_uframes_t mtk_pcm_btcvsd_pointer
 	(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd,
-							BTCVSD_SND_NAME);
-	struct mtk_btcvsd_snd *bt;
+	struct mtk_btcvsd_snd *bt = snd_soc_platform_get_drvdata(rtd->platform);
 	struct mtk_btcvsd_snd_stream *bt_stream;
 	snd_pcm_uframes_t frame = 0;
 	int byte = 0;
@@ -1101,12 +1049,6 @@ static snd_pcm_uframes_t mtk_pcm_btcvsd_pointer
 	int packet_diff;
 	spinlock_t *lock;	/* spinlock for bt stream control */
 	unsigned long flags;
-
-	if (!component) {
-		dev_warn(rtd->dev, "%s(), component is null\n", __func__);
-		return -EINVAL;
-	}
-	bt = snd_soc_component_get_drvdata(component);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		lock = &bt->tx_lock;
@@ -1149,15 +1091,7 @@ static int mtk_pcm_btcvsd_copy(struct snd_pcm_substream *substream,
 			       void __user *buf, unsigned long count)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd,
-							BTCVSD_SND_NAME);
-	struct mtk_btcvsd_snd *bt;
-
-	if (!component) {
-		dev_warn(rtd->dev, "%s(), component is null\n", __func__);
-		return -EINVAL;
-	}
-	bt = snd_soc_component_get_drvdata(component);
+	struct mtk_btcvsd_snd *bt = snd_soc_platform_get_drvdata(rtd->platform);
 
 	/* count: bytes */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -1169,15 +1103,15 @@ static int mtk_pcm_btcvsd_copy(struct snd_pcm_substream *substream,
 }
 
 static struct snd_pcm_ops mtk_btcvsd_ops = {
-	.open		= mtk_pcm_btcvsd_open,
-	.close		= mtk_pcm_btcvsd_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= mtk_pcm_btcvsd_hw_params,
-	.hw_free	= mtk_pcm_btcvsd_hw_free,
-	.prepare	= mtk_pcm_btcvsd_prepare,
-	.trigger	= mtk_pcm_btcvsd_trigger,
-	.pointer	= mtk_pcm_btcvsd_pointer,
-	.copy_user	= mtk_pcm_btcvsd_copy,
+	.open = mtk_pcm_btcvsd_open,
+	.close = mtk_pcm_btcvsd_close,
+	.ioctl = snd_pcm_lib_ioctl,
+	.hw_params = mtk_pcm_btcvsd_hw_params,
+	.hw_free = mtk_pcm_btcvsd_hw_free,
+	.prepare = mtk_pcm_btcvsd_prepare,
+	.trigger = mtk_pcm_btcvsd_trigger,
+	.pointer = mtk_pcm_btcvsd_pointer,
+	.copy_user = mtk_pcm_btcvsd_copy,
 };
 
 /* kcontrol */
@@ -1418,17 +1352,15 @@ static const struct snd_kcontrol_new mtk_btcvsd_snd_controls[] = {
 			  btcvsd_tx_timestamp_get, NULL),
 };
 
-static int mtk_btcvsd_snd_component_probe(struct snd_soc_component *component)
+static int mtk_btcvsd_snd_platform_probe(struct snd_soc_platform *platform)
 {
-	return snd_soc_add_component_controls(component,
-		mtk_btcvsd_snd_controls,
+	return snd_soc_add_platform_controls(platform, mtk_btcvsd_snd_controls,
 		ARRAY_SIZE(mtk_btcvsd_snd_controls));
 }
 
-static const struct snd_soc_component_driver mtk_btcvsd_snd_platform = {
-	.name		= BTCVSD_SND_NAME,
-	.probe		= mtk_btcvsd_snd_component_probe,
-	.ops		= &mtk_btcvsd_ops,
+static struct snd_soc_platform_driver mtk_btcvsd_snd_platform = {
+	.ops = &mtk_btcvsd_ops,
+	.probe = mtk_btcvsd_snd_platform_probe,
 };
 
 static int mtk_btcvsd_snd_probe(struct platform_device *pdev)
@@ -1538,8 +1470,8 @@ static int mtk_btcvsd_snd_probe(struct platform_device *pdev)
 	mtk_btcvsd_snd_set_state(btcvsd, btcvsd->tx, BT_SCO_STATE_IDLE);
 	mtk_btcvsd_snd_set_state(btcvsd, btcvsd->rx, BT_SCO_STATE_IDLE);
 
-	return devm_snd_soc_register_component(dev, &mtk_btcvsd_snd_platform,
-					       NULL, 0);
+	return devm_snd_soc_register_platform(dev,
+					      &mtk_btcvsd_snd_platform);
 }
 
 static int mtk_btcvsd_snd_remove(struct platform_device *pdev)
